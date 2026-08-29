@@ -2,9 +2,9 @@
 文件校验业务模块，负责对上传文件安全、格式等校验
 """
 
-import subprocess
 from pathlib import Path
 from typing import Any
+from zipfile import ZipFile, BadZipFile
 import magic
 from PIL import Image
 from docx import Document
@@ -13,7 +13,7 @@ from pyclamd import ClamdNetworkSocket
 from pypdf import PdfReader
 from app.infra.clamav_gateway import clamav_gateway
 from app.rag.ingestion.services.config import MAX_FILE_SIZE_BYTES, SUPPORTED_FILE_EXTENSIONS, SUPPORTED_MIME_TYPES, \
-    DOC_PARSE_TIMEOUT, DOCKER_CLAMAV_DOC_STR
+    DOCKER_CLAMAV_DOC_STR
 from app.rag.ingestion.state import IngestGraphState
 
 
@@ -88,7 +88,21 @@ def _validate_mime(original_file_path_obj: Path, original_file_suffix: str, ) ->
         raise ValueError(f"格式不支持！您上传的文件后缀为：{original_file_suffix}，未配置该格式的 MIME 白名单！"
                          f"无法继续导入文件，提前终止导入！")
 
-    # 4. 上传文件的实际 MIME 类型和支持的 MIME 类型不匹配
+    # 4. PPTX 格式可能会有特判要求
+    if original_file_suffix == "pptx" and original_file_actual_mime == "application/octet-stream":
+        try:
+            with ZipFile(original_file_path_obj) as z:
+                names = set(z.namelist())
+                if "[Content_Types].xml" in names and "ppt/presentation.xml" in names:
+                    return original_file_actual_mime
+        except BadZipFile as e:
+            raise ValueError(f"上传的 {original_file_suffix} 文件不是有效的 ZIP/OOXML 容器！"
+                             f"无法继续导入文件，提前停止导入！请确保您的文件是标准文件！") from e
+        except OSError as e:
+            raise OSError(f"上传的 {original_file_suffix} 文件读取失败！"
+                          f"无法继续导入文件，提前停止导入！请确保您的文件是标准文件！") from e
+
+    # 5. 上传文件的实际 MIME 类型和支持的 MIME 类型不匹配
     if original_file_actual_mime not in supported_mime_types:
         raise ValueError(f"格式不支持！您上传的文件后缀为：{original_file_suffix}，"
                          f"与读取到的实际 MIME 类型 {original_file_actual_mime} 不匹配！"
@@ -144,16 +158,6 @@ def _validate_file_content(
             case "docx":
                 Document(original_file_path_str)
 
-            case "doc":
-                doc_parse_result = subprocess.run(
-                    ["antiword", original_file_path_str],
-                    check=True,
-                    capture_output=True,
-                    timeout=DOC_PARSE_TIMEOUT
-                )
-                if not doc_parse_result.stdout:
-                    raise ValueError
-
             case "md" | "txt":
                 original_file_path_obj.read_text(encoding="utf-8")
 
@@ -190,7 +194,6 @@ def service_validate_file(state: IngestGraphState) -> IngestGraphState:
     state["is_md"] = original_file_suffix == "md"
     state["is_pdf"] = original_file_suffix == "pdf"
     state["is_pptx"] = original_file_suffix == "pptx"
-    state["is_doc"] = original_file_suffix == "doc"
     state["is_docx"] = original_file_suffix == "docx"
     state["is_jpeg"] = original_file_suffix == "jpeg"
     state["is_jpg"] = original_file_suffix == "jpg"
