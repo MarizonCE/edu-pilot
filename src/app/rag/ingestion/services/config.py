@@ -2,6 +2,7 @@
 
 # 文件大小限制
 MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024  # 100 MiB
+DOC_PARSE_TIMEOUT = 30
 
 # TABLE_SUFFIX = ["xls", "xlsx", "csv"]  # 目前暂时不做，后续可以用 Pandas 配合数据库存储
 SUPPORTED_FILE_EXTENSIONS: set[str] = {"pdf", "pptx", "jpg", "jpeg", "png", "docx", "doc", "md", "txt"}
@@ -9,10 +10,6 @@ SUPPORTED_FILE_EXTENSIONS: set[str] = {"pdf", "pptx", "jpg", "jpeg", "png", "doc
 # 支持的扩展名 MIME
 SUPPORTED_MIME_TYPES: dict[str, set[str]] = {
     "pdf": {"application/pdf"},
-
-    "ppt": {
-        "application/vnd.ms-powerpoint",
-    },
 
     "pptx": {
         "application/zip",
@@ -50,3 +47,6 @@ SUPPORTED_MIME_TYPES: dict[str, set[str]] = {
     "txt": {"text/plain"},
 
 }
+
+# ClamAV 挂载的文档的路径
+DOCKER_CLAMAV_DOC_STR = "/scan/doc"

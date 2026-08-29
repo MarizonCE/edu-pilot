@@ -1,14 +1,28 @@
+"""
+文件校验业务模块，负责对上传文件安全、格式等校验
+"""
+
+import subprocess
 from pathlib import Path
-
+from typing import Any
 import magic
-
+from PIL import Image
+from docx import Document
+from pptx import Presentation
+from pyclamd import ClamdNetworkSocket
+from pypdf import PdfReader
 from app.infra.clamav_gateway import clamav_gateway
-from app.rag.ingestion.services.config import MAX_FILE_SIZE_BYTES, SUPPORTED_FILE_EXTENSIONS, SUPPORTED_MIME_TYPES
+from app.rag.ingestion.services.config import MAX_FILE_SIZE_BYTES, SUPPORTED_FILE_EXTENSIONS, SUPPORTED_MIME_TYPES, \
+    DOC_PARSE_TIMEOUT, DOCKER_CLAMAV_DOC_STR
 from app.rag.ingestion.state import IngestGraphState
 
 
 def _get_data_and_validate(state: IngestGraphState) -> str:
+    """获取参数并校验"""
+    # 1. 从 state 中获取参数
     original_file_path_str: str = state.get("original_file_path_str", "")
+
+    # 2. 进行非空校验
     if not original_file_path_str:
         raise ValueError("The original_file_path_str is empty. 无法继续导入文件，提前终止导入！")
     return original_file_path_str
@@ -27,7 +41,7 @@ def _validate_basic_file(original_file_path_obj: Path) -> None:
                          f"无法继续导入文件，提前终止导入！请确保该路径指向的是文件！")
 
     # 3. 是否为符号链接文件判断
-    if not original_file_path_obj.is_symlink():
+    if original_file_path_obj.is_symlink():
         raise ValueError(f"{original_file_path_obj} 是符号链接文件，"
                          f"无法继续导入文件，提前终止导入！请不要上传符号链接文件，比如快捷方式！")
 
@@ -59,8 +73,8 @@ def _validate_mime(original_file_path_obj: Path, original_file_suffix: str, ) ->
     """通过 MIME 类型校验文件格式"""
     # 1. 获取上传的文件的 MIME 类型
     try:
-        original_file_actual_mime: str = magic.from_file(original_file_path_obj,
-                                                         mime=True)  # 读取 original_file_path_obj 指向的文件，通过文件内容或文件头判断文件真实的 MIME 类型；mime=True 表示读取 MIME 类型，而不是文件描述
+        original_file_actual_mime: str = magic.from_buffer(original_file_path_obj.read_bytes(),
+                                                           mime=True)  # 读取 original_file_path_obj 指向的文件，通过文件内容或文件头判断文件真实的 MIME 类型；mime=True 表示读取 MIME 类型，而不是文件描述
     except Exception as e:
         raise ValueError(f"无法识别文件的真实类型！无法继续导入文件，提前终止导入！"
                          f"异常信息：{e}") from e
@@ -82,67 +96,73 @@ def _validate_mime(original_file_path_obj: Path, original_file_suffix: str, ) ->
     return original_file_actual_mime
 
 
-def _virus_scan(original_file_path_str: str) -> None:
+def _virus_scan(original_file_path_obj: Path) -> None:
+    """使用 ClamAV 服务进行病毒扫描"""
     try:
-        pyclamd_client = clamav_gateway.clamav_client
+        # 1. 获取 pyclamd 客户端
+        pyclamd_client: ClamdNetworkSocket = clamav_gateway.clamav_client
+
+        # 2. 判断是否可以正常连接到服务
         if not pyclamd_client.ping():
             raise RuntimeError("ClamAV 病毒扫描服务不可用！"
                                "为确保安全，无法继续导入文件，提前终止导入！")
-        clamav_result = pyclamd_client.scan_file(original_file_path_str)
+
+        # 3. 获取扫描结果
+        clamav_result_dict: dict[Any, Any] | None = pyclamd_client.scan_file(
+            DOCKER_CLAMAV_DOC_STR + "/test_file/" + original_file_path_obj.name
+        )
     except Exception as e:
         raise RuntimeError("ClamAV 病毒扫描服务不可用！"
                            "为确保安全，无法继续导入文件，提前终止导入！") from e
-    if clamav_result:
+
+    # 4. 判断扫描结果中是否有内容
+    if clamav_result_dict:
         raise ValueError(f"疑似病毒文件！为确保安全，无法继续导入文件，提前终止导入！"
-                         f"ClamAV 扫描结果：{clamav_result}。")
+                         f"ClamAV 扫描结果：{clamav_result_dict}。")
 
 
-def validate_and_update_state(state: IngestGraphState):
-    # 2.
+def _validate_file_content(
+        original_file_path_obj: Path,
+        original_file_path_str: str,
+        original_file_suffix: str
+) -> None:
+    """通过解析器解析文件，判断是否实际格式是否符合"""
+    try:
+        match original_file_suffix:
 
-    # 2. 更新文件类型状态
-    file_suffix = original_file_path_str.rsplit(".", 1)[-1].lower()
-    match file_suffix:
-        case suffix if suffix in MARKDOWN_SUFFIX:
-            state["is_md"] = True
-            state["is_pdf"] = False
-            state["is_ppt"] = False
-            state["is_doc"] = False
-            state["is_image"] = False
-        case suffix if suffix in PDF_SUFFIX:
-            state["is_md"] = False
-            state["is_pdf"] = True
-            state["is_ppt"] = False
-            state["is_doc"] = False
-            state["is_image"] = False
-        case suffix if suffix in POWERPOINT_SUFFIX:
-            state["is_md"] = False
-            state["is_pdf"] = False
-            state["is_ppt"] = True
-            state["is_doc"] = False
-            state["is_image"] = False
-        case suffix if suffix in DOC_SUFFIX:
-            state["is_md"] = False
-            state["is_pdf"] = False
-            state["is_ppt"] = False
-            state["is_doc"] = True
-            state["is_image"] = False
-        case suffix if suffix in IMAGE_SUFFIX:
-            state["is_md"] = False
-            state["is_pdf"] = False
-            state["is_ppt"] = False
-            state["is_doc"] = False
-            state["is_image"] = True
-        case _:
-            state["is_md"] = False
-            state["is_pdf"] = False
-            state["is_ppt"] = False
-            state["is_doc"] = False
-            state["is_image"] = False
-            raise ValueError(f"{file_suffix} 格式不支持，无法继续导入文件，提前终止导入！")
+            case "pdf":
+                pdf_reader: PdfReader = PdfReader(original_file_path_obj)
+                _ = len(pdf_reader.pages)
 
-    # 3. 更新文件名状态
-    state["file_name"] = Path(original_file_path_str).stem
+            case "pptx":
+                Presentation(original_file_path_str)
+
+            case "jpg" | "jpeg" | "png":
+                with Image.open(original_file_path_obj) as image:
+                    image.verify()
+
+            case "docx":
+                Document(original_file_path_str)
+
+            case "doc":
+                doc_parse_result = subprocess.run(
+                    ["antiword", original_file_path_str],
+                    check=True,
+                    capture_output=True,
+                    timeout=DOC_PARSE_TIMEOUT
+                )
+                if not doc_parse_result.stdout:
+                    raise ValueError
+
+            case "md" | "txt":
+                original_file_path_obj.read_text(encoding="utf-8")
+
+            case _:
+                raise ValueError
+
+    except Exception as e:
+        raise ValueError(f"{original_file_suffix} 文件内容解析失败，可能是损坏文件或伪装文件或格式不支持，"
+                         f"文件名为 {original_file_path_obj.name}。无法继续导入文件，提前终止导入！") from e
 
 
 def service_validate_file(state: IngestGraphState) -> IngestGraphState:
@@ -157,10 +177,34 @@ def service_validate_file(state: IngestGraphState) -> IngestGraphState:
     # 3. 校验文件后缀判断是否为支持的格式
     original_file_suffix: str = _get_suffix_and_validate(original_file_path_obj)
 
-    # 4. 文件 MIME 校验
+    # 4. 通过 MIME 类型校验文件格式
     original_file_actual_mime: str = _validate_mime(original_file_path_obj, original_file_suffix)
 
     # 5. 使用 ClamAV 进行病毒扫描
-    _virus_scan(original_file_path_str)
+    _virus_scan(original_file_path_obj)
+
+    # 6. 通过解析器校验文件格式
+    _validate_file_content(original_file_path_obj, original_file_path_str, original_file_suffix)
+
+    # 7. 更新类型状态
+    state["is_md"] = original_file_suffix == "md"
+    state["is_pdf"] = original_file_suffix == "pdf"
+    state["is_pptx"] = original_file_suffix == "pptx"
+    state["is_doc"] = original_file_suffix == "doc"
+    state["is_docx"] = original_file_suffix == "docx"
+    state["is_jpeg"] = original_file_suffix == "jpeg"
+    state["is_jpg"] = original_file_suffix == "jpg"
+    state["is_png"] = original_file_suffix == "png"
+    state["is_txt"] = original_file_suffix == "txt"
+    state["file_name"] = original_file_path_obj.stem
+    state["file_mime"] = original_file_actual_mime
 
     return state
+
+
+"""
+优化点：
+1. 文件存储到 OSS，MySQL 存文件元数据，用于复用
+2. 内存占用可能有点大，进行优化并做超时处理
+3. 
+"""

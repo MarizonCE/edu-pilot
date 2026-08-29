@@ -13,6 +13,10 @@ class ClamAVConfig:
 
 
 clamav_config = ClamAVConfig(
-    host=env_str("CLAMAV_HOST"),
-    port=int(env_str("CLAMAV_PORT"))
+    host=env_str("CLAMAV_HOST", "127.0.0.1"),
+    port=int(env_str("CLAMAV_PORT", "3310"))
 )
+
+if __name__ == '__main__':
+    print(clamav_config.host)
+    print(clamav_config.port)

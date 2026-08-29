@@ -2,6 +2,13 @@
 提供统一的环境变量配置读取与类型转换功能。
 """
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# 根目录绝对路径
+PROJECT_ROOT_STR = "C:/Users/Marizon/Documents/PycharmProjects/edu-pilot"
+
 
 
 def env_str(name: str, default: str = "") -> str:
@@ -13,3 +20,7 @@ def env_str(name: str, default: str = "") -> str:
     """
     value = os.getenv(name)
     return value if value is not None else default
+
+
+if __name__ == '__main__':
+    print(env_str("CLAMAV_PORT"))

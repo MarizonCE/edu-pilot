@@ -7,3 +7,4 @@ services:
     restart: unless-stopped
     volumes:
       - "C:/docker-data/clamav:/var/lib/clamav/"
+      - "C:/Users/Marizon/Documents/PycharmProjects/edu-pilot:/scan"
