@@ -5,7 +5,7 @@ MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024  # 100 MiB
 DOC_PARSE_TIMEOUT = 30
 
 # TABLE_SUFFIX = ["xls", "xlsx", "csv"]  # 目前暂时不做，后续可以用 Pandas 配合数据库存储
-SUPPORTED_FILE_EXTENSIONS: set[str] = {"pdf", "pptx", "jpg", "jpeg", "png", "docx", "md", "txt"}
+SUPPORTED_FILE_EXTENSIONS: set[str] = {"pdf", "pptx", "jpg", "jpeg", "png", "docx", "md"}
 
 # 支持的扩展名 MIME
 SUPPORTED_MIME_TYPES: dict[str, set[str]] = {

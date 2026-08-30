@@ -13,10 +13,7 @@ class IngestGraphState(TypedDict, total=False):
     is_pptx: bool
     is_doc: bool
     is_docx: bool
-    is_jpeg: bool
-    is_jpg: bool
-    is_png: bool
-    is_txt: bool
+    is_image: bool
 
     # 文件路径
     md_path_str: str
@@ -24,10 +21,7 @@ class IngestGraphState(TypedDict, total=False):
     pptx_path_str: str
     doc_path_str: str
     docx_path_str: str
-    jpeg_path_str: str
-    jpg_path_str: str
-    png_path_str: str
-    txt_path_str: str
+    image_path_str: str
 
     file_name: str
     file_mime: str
@@ -40,18 +34,12 @@ default_state: IngestGraphState = {
     "is_pdf": False,
     "is_pptx": False,
     "is_docx": False,
-    "is_jpeg": False,
-    "is_jpg": False,
-    "is_png": False,
-    "is_txt": False,
+    "is_image": False,
     "md_path_str": "",
     "pdf_path_str": "",
     "pptx_path_str": "",
     "docx_path_str": "",
-    "jpeg_path_str": "",
-    "jpg_path_str": "",
-    "png_path_str": "",
-    "txt_path_str": "",
+    "image_path_str": "",
     "file_name": "",
     "file_mime": "",
 }
