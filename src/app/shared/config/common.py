@@ -7,9 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 根目录绝对路径
-PROJECT_ROOT_STR = "C:/Users/Marizon/Documents/PycharmProjects/edu-pilot"
-
-
+PROJECT_ROOT_STR:str = "C:/Users/Marizon/Documents/PycharmProjects/edu-pilot"
 
 def env_str(name: str, default: str = "") -> str:
     """

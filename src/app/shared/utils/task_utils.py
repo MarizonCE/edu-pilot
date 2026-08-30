@@ -34,7 +34,7 @@ def add_running_task(task_id: str, node_name: str, is_stream: bool = False) -> N
 
 
 def add_done_task(task_id: str, node_name: str, is_stream: bool = False) -> None:
-    """添加“已完成”的节点"""
+    """添加“已完成”的节点任务"""
     # 从 running 中移除已经完成的节点，不用 remove 是因为里面可能有多个同名的节点，要移除所有这些节点
     _ensure_task(task_id)
     running = _tasks_running_list[task_id]

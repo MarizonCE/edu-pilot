@@ -51,3 +51,12 @@ SUPPORTED_MIME_TYPES: dict[str, set[str]] = {
 
 # ClamAV 挂载的文档的路径
 DOCKER_CLAMAV_DOC_STR = "/scan/doc"
+
+# parse_output_dir_obj 对应的目录常量
+PARSE_SERVICE_OUTPUT_DIR = "output"
+
+# MinerU 申请上传文件的 url 后缀
+MINERU_UPLOAD_URL_SUFFIX = "/file-urls/batch"
+
+# 向 MinerU 请求上传文件的最多次数
+MINERU_UPLOAD_POST_NUM = 3

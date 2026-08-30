@@ -31,6 +31,7 @@ def _get_data_and_validate(state: IngestGraphState) -> str:
         raise ValueError("The original_file_path_str is empty. 无法继续导入文件，提前终止导入！")
     return original_file_path_str
 
+
 @service_log("_validate_basic_file")
 def _validate_basic_file(original_file_path_obj: Path) -> None:
     """检查传入的文件路径是否真实存在、指向的是否为文件、是否为软连接、文件大小是否符合要求"""
@@ -69,6 +70,7 @@ def _validate_basic_file(original_file_path_obj: Path) -> None:
                          f"无法继续导入文件，提前终止导入！"
                          f"请限制文件大小在 {MAX_FILE_SIZE_BYTES / 1024 / 1024:.0f} MiB 以内！")
 
+
 @service_log("_get_suffix_and_validate")
 def _get_suffix_and_validate(original_file_path_obj: Path) -> str:
     """判断格式是否支持并返回文件格式"""
@@ -82,7 +84,9 @@ def _get_suffix_and_validate(original_file_path_obj: Path) -> str:
         raise ValueError(f"格式不支持！您上传的文件格式为 {original_file_suffix}。"
                          f"无法继续导入文件，提前终止导入！"
                          f"目前仅支持 {", ".join(SUPPORTED_FILE_EXTENSIONS)} 格式")
+    logger.info(f"上传的文件的格式为 {original_file_suffix}")
     return original_file_suffix
+
 
 @service_log("_validate_mime")
 def _validate_mime(original_file_path_obj: Path, original_file_suffix: str, ) -> str:
@@ -138,6 +142,7 @@ def _validate_mime(original_file_path_obj: Path, original_file_suffix: str, ) ->
                          f"无法继续导入文件，提前终止导入！")
     return original_file_actual_mime
 
+
 @service_log("_virus_scan")
 def _virus_scan(original_file_path_obj: Path) -> None:
     """使用 ClamAV 服务进行病毒扫描"""
@@ -164,6 +169,7 @@ def _virus_scan(original_file_path_obj: Path) -> None:
     if clamav_result_dict:
         raise ValueError(f"疑似病毒文件！为确保安全，无法继续导入文件，提前终止导入！"
                          f"ClamAV 扫描结果：{clamav_result_dict}。")
+
 
 @service_log("_validate_file_content")
 def _validate_file_content(
@@ -207,8 +213,11 @@ def _validate_file_content(
         raise ValueError(f"{original_file_suffix} 文件内容解析失败，可能是损坏文件或伪装文件或格式不支持，"
                          f"文件名为 {original_file_path_obj.name}。无法继续导入文件，提前终止导入！") from e
 
+
 @service_log("service_validate_file")
 def service_validate_file(state: IngestGraphState) -> IngestGraphState:
+    """对上传的文件做格式、安全等校验"""
+
     # 1. original_file_path_str 文件路径非空校验
     original_file_path_str: str = _get_data_and_validate(state)
 
@@ -234,7 +243,7 @@ def service_validate_file(state: IngestGraphState) -> IngestGraphState:
     state["is_pdf"] = original_file_suffix == "pdf"
     state["is_pptx"] = original_file_suffix == "pptx"
     state["is_docx"] = original_file_suffix == "docx"
-    # state["is_image"] = original_file_suffix == ("jpeg" or "jpg" or "png")  # 不能这样写
+    # state["is_image"] = original_file_suffix == ("jpeg" or "jpg" or "png")  # 不能这样写，("jpeg" or "jpg" or "png") 返回的是 "jpeg"，需要 original_file_suffix == "jpeg" or original_file_suffix == "jpg" or original_file_suffix == "png"
     state["is_image"] = original_file_suffix in {"jpg", "jpeg", "png"}
     state["file_name"] = original_file_path_obj.stem
     state["file_mime"] = original_file_actual_mime
@@ -246,5 +255,5 @@ def service_validate_file(state: IngestGraphState) -> IngestGraphState:
 优化点：
 1. 文件存储到 OSS，MySQL 存文件元数据，用于复用
 2. 内存占用可能有点大，进行优化并做超时处理
-3. 
+3. 豆包生成的文件可能无法通过 MIME 校验，因为其 MIME 类型是 application/octet-stream，需要拆开来检验
 """

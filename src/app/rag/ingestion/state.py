@@ -22,6 +22,7 @@ class IngestGraphState(TypedDict, total=False):
     doc_path_str: str
     docx_path_str: str
     image_path_str: str
+    parse_output_dir_str: str
 
     file_name: str
     file_mime: str
@@ -40,6 +41,7 @@ default_state: IngestGraphState = {
     "pptx_path_str": "",
     "docx_path_str": "",
     "image_path_str": "",
+    "parse_output_dir_str": "",
     "file_name": "",
     "file_mime": "",
 }

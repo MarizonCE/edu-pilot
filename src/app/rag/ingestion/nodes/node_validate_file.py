@@ -137,9 +137,25 @@ if __name__ == '__main__':
     # test_result_state = node_validate_file(test_entry_state)
     # print(json.dumps(test_result_state, indent=4, ensure_ascii=False))
 
+    # test_entry_state: IngestGraphState = create_default_state(
+    #     task_id="测试 Docker 容器未开启的情况",
+    #     original_file_path_str=PROJECT_ROOT_STR + "/doc/test_file/RAG 项目.docx"
+    # )
+    # test_result_state = node_validate_file(test_entry_state)
+    # print(json.dumps(test_result_state, indent=4, ensure_ascii=False))
+
+    # test_entry_state: IngestGraphState = create_default_state(
+    #     task_id="测试豆包生成的 docx 文件",
+    #     original_file_path_str=PROJECT_ROOT_STR + "/doc/test_file/复杂DOCX测试样本.docx"
+    # )
+    # test_result_state = node_validate_file(test_entry_state)
+    # print(json.dumps(test_result_state, indent=4, ensure_ascii=False))
+
     test_entry_state: IngestGraphState = create_default_state(
-        task_id="测试 Docker 容器未开启的情况",
-        original_file_path_str=PROJECT_ROOT_STR + "/doc/test_file/RAG 项目.docx"
+        task_id="测试 LibreOffice 导出的 pdf 文件",
+        original_file_path_str=PROJECT_ROOT_STR + "/doc/test_file/渲染预览PDF（LibreOffice导出）.pdf"
     )
     test_result_state = node_validate_file(test_entry_state)
     print(json.dumps(test_result_state, indent=4, ensure_ascii=False))
+
+
