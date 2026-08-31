@@ -60,3 +60,18 @@ MINERU_UPLOAD_URL_SUFFIX = "/file-urls/batch"
 
 # 向 MinerU 请求上传文件的最多次数
 MINERU_UPLOAD_POST_NUM = 3
+
+# 向 MinerU 请求上传文件的超时时间
+GET_MINERU_BATCH_ID_AND_UPLOAD_URL_RESPONSE_TIMEOUT = 30
+
+# 向 MinerU 请求上传文件失败重试时间间隔
+GET_MINERU_BATCH_ID_AND_UPLOAD_URL_TRY_GAP = 2
+
+# 向 MinerU 上传文件的最多次数
+MINERU_UPLOAD_FILE_NUM = 3
+
+# 向 MinerU 上传文件的返回数据超时时间
+MINERU_UPLOAD_FILE_RESPONSE_TIMEOUT = 60
+
+# 向 MinerU 上传文件失败重试时间间隔
+MINERU_UPLOAD_FILE_TRY_GAP = 2
