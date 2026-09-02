@@ -23,6 +23,7 @@ class IngestGraphState(TypedDict, total=False):
     docx_path_str: str
     image_path_str: str
     parse_output_dir_str: str
+    extracted_md_path_str: str
 
     file_name: str
     file_mime: str
@@ -43,7 +44,7 @@ default_state: IngestGraphState = {
     "image_path_str": "",
     "parse_output_dir_str": "",
     "file_name": "",
-    "file_mime": "",
+    "file_mime": ""
 }
 
 

@@ -1,13 +1,13 @@
+import shutil
 import time
 from pathlib import Path
-
 import requests
 from app.infra.infra_config import infra_config
 from app.rag.ingestion.services.config import PARSE_SERVICE_OUTPUT_DIR, MINERU_UPLOAD_URL_SUFFIX, \
     MINERU_UPLOAD_POST_NUM, GET_MINERU_BATCH_ID_AND_UPLOAD_URL_RESPONSE_TIMEOUT, MINERU_UPLOAD_FILE_NUM, \
     MINERU_UPLOAD_FILE_RESPONSE_TIMEOUT, MINERU_UPLOAD_FILE_TRY_INTERVAL_SECONDS, \
     GET_MINERU_BATCH_ID_AND_UPLOAD_URL_TRY_INTERVAL_SECONDS, MINERU_GET_EXTRACTED_RESULT_URL_SUFFIX, \
-    MINERU_POLL_TIMEOUT_SECONDS, MINERU_POLL_TRY_INTERVAL_SECONDS
+    MINERU_POLL_TIMEOUT_SECONDS, MINERU_POLL_TRY_INTERVAL_SECONDS, MINERU_DOWNLOAD_TIMEOUT_SECONDS
 from app.rag.ingestion.state import IngestGraphState
 from app.shared.config.common import PROJECT_ROOT_STR
 from app.shared.runtime.logger import logger
@@ -277,7 +277,7 @@ def _get_extract_result(batch_id: str, header: dict[str, str]) -> str:
         extract_result = extract_result_list[0]
 
         # 6. 解析结果状态判定
-        extract_result_state = extract_result.get("state", "")
+        extract_result_state: str = extract_result.get("state", "")
         if extract_result_state == "done":
             full_zip_url = extract_result.get("full_zip_url")
             if not full_zip_url:
@@ -299,6 +299,52 @@ def _get_extract_result(batch_id: str, header: dict[str, str]) -> str:
     raise RuntimeError("Unexpected unreachable state")
 
 
+def _download_and_extract(zip_url: str, parse_output_dir_obj: Path, file_name: str) -> Path:
+    """下载、解压并重命名文件"""
+    # 1. 下载
+    download_response = requests.get(zip_url, timeout=MINERU_DOWNLOAD_TIMEOUT_SECONDS)
+
+    if download_response.status_code != 200:
+        logger.error(f"从 MinerU 下载解析后的结果 zip 文件出错，网络状态码为 {download_response.status_code}"
+                     f"zip_url 为 {zip_url}。无法继续导入文件，提前终止导入流程！")
+        raise RuntimeError(f"从 MinerU 下载解析后的结果 zip 文件出错，网络状态码为 {download_response.status_code}"
+                           f"zip_url 为 {zip_url}。无法继续导入文件，提前终止导入流程！")
+
+    result_zip_file_obj: Path = parse_output_dir_obj / f"{file_name}.zip"  # 路径记得写全，不要忘了后缀
+    result_zip_file_obj.write_bytes(download_response.content)
+
+    # 2. 解压
+    result_zip_extract_dir: Path = parse_output_dir_obj / file_name
+    if result_zip_extract_dir.is_dir():
+        shutil.rmtree(result_zip_extract_dir)
+    result_zip_extract_dir.mkdir(parents=True, exist_ok=True)  # 如果已经存在同名文件（包括后缀），也不能创建目录
+    shutil.unpack_archive(result_zip_file_obj, result_zip_extract_dir)
+
+    # 3. md 文件重命名与原文件同名
+    # 注意列表里的路径是否是绝对路径取决于 result_zip_extract_dir
+    extracted_md_path_obj_list: list[Path] = list(result_zip_extract_dir.rglob("*.md"))
+    if not extracted_md_path_obj_list:
+        logger.error(f"从 MinerU 下载的文件解析结果 zip 文件解压后里面没有 md 文件。"
+                     f"无法继续导入文件，提前终止导入流程！")
+        raise ValueError(f"从 MinerU 下载的文件解析结果 zip 文件解压后里面没有 md 文件。"
+                         f"无法继续导入文件，提前终止导入流程！")
+
+    for current_extracted_md_path_obj in extracted_md_path_obj_list:
+        if current_extracted_md_path_obj.stem == file_name:
+            logger.info(f"从 MinerU 下载的文件解析结果解压后的 md 文件与原上传文件同名，直接返回！")
+            return current_extracted_md_path_obj
+
+    for current_extracted_md_path_obj in extracted_md_path_obj_list:
+        if current_extracted_md_path_obj.stem == "full":
+            extracted_md_path_obj: Path = current_extracted_md_path_obj
+            break
+    else:
+        extracted_md_path_obj: Path = extracted_md_path_obj_list[0]
+    extracted_md_path_obj: Path = extracted_md_path_obj.rename(extracted_md_path_obj.parent / f"{file_name}.md")
+
+    return extracted_md_path_obj
+
+
 def service_parse_file(state: IngestGraphState) -> IngestGraphState:
     """将 pdf, pptx, docx 文件通过 MinerU 解析成 md 文件"""
     # 1. 获取并校验参数
@@ -315,6 +361,12 @@ def service_parse_file(state: IngestGraphState) -> IngestGraphState:
     _upload_to_mineru(file_upload_url, file_path_obj, batch_id)
 
     # 4. 获取 MinerU 解析结果
-    _get_extract_result(batch_id, header)
+    full_zip_url = _get_extract_result(batch_id, header)
+
+    # 5. 下载、解压并重命名结果中的 md 文件
+    md_path_obj: Path = _download_and_extract(full_zip_url, parse_output_dir_obj, file_path_obj.stem)
+
+    # 6. 更新状态
+    state["md_path_str"] = str(md_path_obj)
 
     return state

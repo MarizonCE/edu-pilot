@@ -79,8 +79,12 @@ MINERU_UPLOAD_FILE_TRY_INTERVAL_SECONDS = 2
 # 获取 MinerU 解析结果的 url 后缀
 MINERU_GET_EXTRACTED_RESULT_URL_SUFFIX = "/extract-results/batch"
 
-# 从 MinerU 获取解析结果超时时间
+# 从 MinerU 获取解析结果超时时间（超过就不再轮询）
 MINERU_POLL_TIMEOUT_SECONDS = 600
 
-# 每次尝试从 MinerU 获取解析结果的时间间隔
+# 轮询从 MinerU 获取解析结果的时间间隔
 MINERU_POLL_TRY_INTERVAL_SECONDS = 2
+
+# 从 MinerU 下载文件超时时间
+MINERU_DOWNLOAD_TIMEOUT_SECONDS = 600
+
