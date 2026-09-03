@@ -1,6 +1,5 @@
 import os
 import sys
-
 from app.rag.ingestion.services.service_parse_file import service_parse_file
 from app.rag.ingestion.state import IngestGraphState, create_default_state
 from app.shared.config.common import PROJECT_ROOT_STR

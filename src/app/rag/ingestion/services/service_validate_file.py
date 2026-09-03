@@ -249,11 +249,3 @@ def service_validate_file(state: IngestGraphState) -> IngestGraphState:
     state["file_mime"] = original_file_actual_mime
 
     return state
-
-
-"""
-优化点：
-1. 文件存储到 OSS，MySQL 存文件元数据，用于复用
-2. 内存占用可能有点大，进行优化并做超时处理
-3. 豆包生成的文件可能无法通过 MIME 校验，因为其 MIME 类型是 application/octet-stream，需要拆开来检验
-"""

@@ -1,3 +1,6 @@
+"""
+文件解析业务模块，负责将上传的 pptx, pdf, docx 等文件转换成 md 格式
+"""
 import shutil
 import time
 from pathlib import Path
@@ -7,12 +10,15 @@ from app.rag.ingestion.services.config import PARSE_SERVICE_OUTPUT_DIR, MINERU_U
     MINERU_UPLOAD_POST_NUM, GET_MINERU_BATCH_ID_AND_UPLOAD_URL_RESPONSE_TIMEOUT, MINERU_UPLOAD_FILE_NUM, \
     MINERU_UPLOAD_FILE_RESPONSE_TIMEOUT, MINERU_UPLOAD_FILE_TRY_INTERVAL_SECONDS, \
     GET_MINERU_BATCH_ID_AND_UPLOAD_URL_TRY_INTERVAL_SECONDS, MINERU_GET_EXTRACTED_RESULT_URL_SUFFIX, \
-    MINERU_POLL_TIMEOUT_SECONDS, MINERU_POLL_TRY_INTERVAL_SECONDS, MINERU_DOWNLOAD_TIMEOUT_SECONDS
+    MINERU_POLL_TIMEOUT_SECONDS, MINERU_POLL_TRY_INTERVAL_SECONDS, MINERU_DOWNLOAD_TIMEOUT_SECONDS, \
+    MINERU_GET_EXTRACTED_RESULT_URL_TIMEOUT_SECONDS
 from app.rag.ingestion.state import IngestGraphState
 from app.shared.config.common import PROJECT_ROOT_STR
 from app.shared.runtime.logger import logger
+from app.shared.runtime.node_and_service_log import service_log
 
 
+@service_log("_get_data_and_validate")
 def _get_data_and_validate(state: IngestGraphState) -> tuple[Path, Path]:
     """获取参数并校验"""
     # 1. 获取参数
@@ -53,6 +59,7 @@ def _get_data_and_validate(state: IngestGraphState) -> tuple[Path, Path]:
     return file_path_obj, parse_output_dir_obj
 
 
+@service_log("_get_mineru_batch_id_and_upload_url")
 def _get_mineru_batch_id_and_upload_url(file_path_obj: Path) -> tuple[str, str, dict[str, str]]:
     """向 MinerU 申请上传文件，获取 batch_id 和 预签名地址"""
     # 1. 基础参数
@@ -139,13 +146,14 @@ def _get_mineru_batch_id_and_upload_url(file_path_obj: Path) -> tuple[str, str, 
     file_upload_urls = response_dict.get("data", {}).get("file_urls", [])
     file_upload_url = ""
     if file_upload_urls:
-        file_upload_url = file_upload_urls[0]
+        file_upload_url = file_upload_urls[0]  # 因为这里是单文件场景，只取第一个，如果是多文件批量上传到 MinerU 的场景
 
     logger.info(f"完成向 MinerU 服务器上传文件解析的申请，batch_id：{batch_id}，上传文件的预签名地址：{file_upload_url}")
 
     return batch_id, file_upload_url, header
 
 
+@service_log("_upload_to_mineru")
 def _upload_to_mineru(file_upload_url: str, file_path_obj: Path, batch_id: str) -> None:
     """向获取到的 MinerU 的预签名地址上传文件"""
     # 只需要判断网络状态码，不需要判断业务状态码，因为这里没有业务
@@ -192,6 +200,7 @@ def _upload_to_mineru(file_upload_url: str, file_path_obj: Path, batch_id: str) 
                          f"无法继续导入文件，提前终止导入流程！")
 
 
+@service_log("_get_extract_result")
 def _get_extract_result(batch_id: str, header: dict[str, str]) -> str:
     # 1. 基础参数
     result_url = infra_config.mineru.base_url + MINERU_GET_EXTRACTED_RESULT_URL_SUFFIX + "/" + f"{batch_id}"
@@ -210,7 +219,8 @@ def _get_extract_result(batch_id: str, header: dict[str, str]) -> str:
 
         # 2. 没有超时时：
         try:
-            poll_result = requests.get(url=result_url, headers=header)
+            poll_result = requests.get(url=result_url, headers=header,
+                                       timeout=MINERU_GET_EXTRACTED_RESULT_URL_TIMEOUT_SECONDS)
         except Exception as e:
             logger.warning(f"获取解析结果出现网络波动，异常信息：{e}，{MINERU_POLL_TRY_INTERVAL_SECONDS} 秒后重试！")
             time.sleep(MINERU_POLL_TRY_INTERVAL_SECONDS)
@@ -299,6 +309,7 @@ def _get_extract_result(batch_id: str, header: dict[str, str]) -> str:
     raise RuntimeError("Unexpected unreachable state")
 
 
+@service_log("_download_and_extract")
 def _download_and_extract(zip_url: str, parse_output_dir_obj: Path, file_name: str) -> Path:
     """下载、解压并重命名文件"""
     # 1. 下载
@@ -345,8 +356,9 @@ def _download_and_extract(zip_url: str, parse_output_dir_obj: Path, file_name: s
     return extracted_md_path_obj
 
 
+@service_log("service_parse_file")
 def service_parse_file(state: IngestGraphState) -> IngestGraphState:
-    """将 pdf, pptx, docx 文件通过 MinerU 解析成 md 文件"""
+    """将 pdf, pptx, docx 文件通过 MinerU 解析成 md 文件。"""
     # 1. 获取并校验参数
     file_path_obj: Path
     parse_output_dir_obj: Path
