@@ -76,6 +76,8 @@ def _scan_images(md_images_dir_obj: Path, md_content: str) -> list[tuple[str, st
     return near_image_context
 
 
+
+
 def service_understand_image_and_table(state: IngestGraphState) -> IngestGraphState:
     # 1. 获取参数并校验
     md_path_obj: Path
