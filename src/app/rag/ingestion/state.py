@@ -27,6 +27,7 @@ class IngestGraphState(TypedDict, total=False):
 
     file_name: str
     file_mime: str
+    md_content: str
 
 
 default_state: IngestGraphState = {
@@ -44,7 +45,8 @@ default_state: IngestGraphState = {
     "image_path_str": "",
     "parse_output_dir_str": "",
     "file_name": "",
-    "file_mime": ""
+    "file_mime": "",
+    "md_content": ""
 }
 
 

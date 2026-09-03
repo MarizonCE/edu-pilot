@@ -148,8 +148,13 @@ def _get_mineru_batch_id_and_upload_url(file_path_obj: Path) -> tuple[str, str, 
     if file_upload_urls:
         file_upload_url = file_upload_urls[0]  # 因为这里是单文件场景，只取第一个，如果是多文件批量上传到 MinerU 的场景
 
+    # 5. 预签名地址非空校验
+    if not file_upload_url:
+        logger.error(f"从 MinerU 获取的上传文件的预签名地址为空。对应的 batch_id 为 {batch_id}。"
+                     f"无法继续导入文件，提前终止导入流程！")
+        raise ValueError(f"从 MinerU 获取的上传文件的预签名地址为空。对应的 batch_id 为 {batch_id}。"
+                         f"无法继续导入文件，提前终止导入流程！")
     logger.info(f"完成向 MinerU 服务器上传文件解析的申请，batch_id：{batch_id}，上传文件的预签名地址：{file_upload_url}")
-
     return batch_id, file_upload_url, header
 
 
