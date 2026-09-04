@@ -2,6 +2,7 @@
 节点和业务日志模块
 """
 import functools
+import inspect
 import time
 from typing import Mapping
 
@@ -38,6 +39,21 @@ def node_log(node_name: str):
 
 def service_log(step_name: str):
     def decorator(func):
+        if inspect.iscoroutinefunction(func):
+            @functools.wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                start_ts = time.time()
+                logger.info(f"【{step_name}】步骤开始")
+                try:
+                    result = await func(*args, **kwargs)
+                    cost_ms = int((time.time() - start_ts) * 1000)
+                    logger.info(f"【{step_name}】步骤完成，耗时 = {cost_ms} ms")
+                    return result
+                except Exception:
+                    logger.exception(f"【{step_name}】步骤异常")
+                    raise
+
+            return async_wrapper
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             start_ts = time.time()

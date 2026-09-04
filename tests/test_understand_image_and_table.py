@@ -1,7 +1,6 @@
 """
 图片意图识别业务模块，负责对 md 文件中的图片、上传的图片进行图意识别
 """
-import asyncio
 import base64
 import re
 from mimetypes import guess_type
@@ -85,8 +84,7 @@ def _scan_images(md_images_dir_obj: Path, md_content: str) -> list[tuple[str, st
     return near_image_context
 
 
-async def _understand_image(near_image_context: list[tuple[str, str, tuple[str, str]]], file_title: str) -> dict[
-    str, str]:
+def _understand_image(near_image_context: list[tuple[str, str, tuple[str, str]]], file_title: str) -> dict[str, str]:
     """调用视觉理解模型生成对应图片的摘要"""
     # 1. 获取视觉理解模型客户端实例
     vlm_client = vlm_gateway.vlm_client()
@@ -94,24 +92,20 @@ async def _understand_image(near_image_context: list[tuple[str, str, tuple[str, 
     # 2. 封装调用链
     chains = vlm_client | StrOutputParser()
 
-    # 3. 分别处理每一张图片
-    async def _understand_one_image(
-            item: tuple[str, str, tuple[str, str]]) -> tuple[str, str]:
-        md_image_name: str = item[0]
-        md_image_path_obj: Path = Path(item[1])
-        pre_context: str = item[2][0]
-        post_context: str = item[2][1]
-
+    # 3. 循环处理每一张图片
+    image_summaries: dict[str, str] = {}
+    for md_image_name, md_image_path_str, (pre_context, post_context) in near_image_context:
         # 3.1. 添加 API 调用速率限制
-        await call_api_rate_limit()
+        call_api_rate_limit()
 
-        # 3.2. 封装提示词
+        # 3.2 封装提示词
         understand_image_prompt_text = load_prompt(
             variable_name="understand_image",
             file_title=file_title,
             pre_context=pre_context,
             post_context=post_context
         )
+        md_image_path_obj: Path = Path(md_image_path_str)
         # 可以用 Base64 编码上传也可以直接图片上传，这里图片大小比较小，选择使用 Base64 编码方式
         md_image_base64_str: str = base64.b64encode(md_image_path_obj.read_bytes()).decode("utf-8")
         messages = HumanMessage(
@@ -127,13 +121,9 @@ async def _understand_image(near_image_context: list[tuple[str, str, tuple[str, 
             ]
         )
 
-        # 3.3. 执行调用链
-        md_image_summary = await chains.ainvoke([messages])  # 异步是 ainvoke，不要写成 invoke 了
-        logger.info(f"完成：{md_image_name} 图片意图识别，识别内容：{md_image_summary}")
-        return md_image_name, md_image_summary
-
-    results = await asyncio.gather(*(_understand_one_image(item) for item in near_image_context))
-    image_summaries: dict[str, str] = {result[0]: result[1] for result in results}
+        # 3.3 执行调用链
+        md_image_summary = chains.invoke([messages])
+        image_summaries[md_image_name] = md_image_summary
 
     return image_summaries
 
@@ -148,7 +138,4 @@ def service_understand_image_and_table(state: IngestGraphState) -> IngestGraphSt
 
     # 2. 获取 md_content 中的图片及其附近上下文
     near_image_context: list[tuple[str, str, tuple[str, str]]] = _scan_images(md_images_dir_obj, md_content)
-
-    # 3. 调用视觉理解模型总结 md 文件中图片的内容
-    asyncio.run(_understand_image(near_image_context, md_path_obj.stem))
     return state

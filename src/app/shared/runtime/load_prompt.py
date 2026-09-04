@@ -30,3 +30,8 @@ def load_prompt(variable_name, **kwargs) -> str:
         logger.debug(f"提示词渲染成功，替换变量：{list(kwargs.keys())}")
         return rendered_prompt_text
     return raw_prompt_text
+
+
+if __name__ == '__main__':
+    text = load_prompt("understand_image", file_title="666", pre_context="88\n", post_context="9\n\n99")
+    print(text)
