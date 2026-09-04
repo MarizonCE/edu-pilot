@@ -4,9 +4,13 @@
 import re
 from pathlib import Path
 
+from langchain_core.output_parsers import StrOutputParser
+
+from app.infra.vlm_gateway import vlm_gateway
 from app.rag.ingestion.services.config import MODEL_SUPPORTED_IMAGE_EXTENSIONS
 from app.rag.ingestion.state import IngestGraphState
 from app.shared.runtime.logger import logger
+from app.shared.utils.rate_limit_utils import call_api_rate_limit
 
 
 def _get_data_and_validate(state: IngestGraphState) -> tuple[Path, str, Path]:
@@ -75,6 +79,19 @@ def _scan_images(md_images_dir_obj: Path, md_content: str) -> list[tuple[str, st
 
     return near_image_context
 
+
+def _understand_image(near_image_context: list[tuple[str, str, tuple[str, str]]], file_stem: str) -> dict[str, str]:
+    # 1. 获取视觉理解模型客户端实例
+    vlm_client = vlm_gateway.vlm_client()
+
+    # 2. 封装调用链
+    chains = vlm_client | StrOutputParser()
+
+    # 3. 循环处理每一张图片
+    image_summaries: dict[str, str] = {}
+    for md_image_name, md_image_path_str, (pre_context, post_context) in near_image_context:
+        call_api_rate_limit()
+        
 
 
 
