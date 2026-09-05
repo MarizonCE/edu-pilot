@@ -14,6 +14,7 @@ class IngestGraphState(TypedDict, total=False):
     is_doc: bool
     is_docx: bool
     is_image: bool
+    is_image_in_md: bool
 
     # 文件路径
     md_path_str: str
@@ -38,6 +39,7 @@ default_state: IngestGraphState = {
     "is_pptx": False,
     "is_docx": False,
     "is_image": False,
+    "is_image_in_md": True,
     "md_path_str": "",
     "pdf_path_str": "",
     "pptx_path_str": "",

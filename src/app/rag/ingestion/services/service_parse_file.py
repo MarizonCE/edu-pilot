@@ -383,7 +383,11 @@ def service_parse_file(state: IngestGraphState) -> IngestGraphState:
     # 5. 下载、解压并重命名结果中的 md 文件
     md_path_obj: Path = _download_and_extract(full_zip_url, parse_output_dir_obj, file_path_obj.stem)
 
-    # 6. 更新状态
+    # 6. 判断该 md 文件里面是否有图片并更新状态
+    md_images_dir_obj: Path = md_path_obj.parent / "images"
+    if not md_images_dir_obj.is_dir():
+        state["is_image_in_md"] = False
+    state["is_image_in_md"] = True
     state["md_path_str"] = str(md_path_obj)
 
     return state

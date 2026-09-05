@@ -94,4 +94,8 @@ MINERU_GET_EXTRACTED_RESULT_URL_TIMEOUT_SECONDS = 30
 # MinerU 返回的图片文件中支持的文件格式
 MODEL_SUPPORTED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", "webp"}
 
+# OSS 中存储图片的父路径
+OSS_IMAGES_DIR_STR = "/upload-images"
 
+# 每张图片上传到 OSS 服务器的最多尝试次数
+OSS_UPLOAD_IMAGE_ATTEMPT_TIMES = 3
