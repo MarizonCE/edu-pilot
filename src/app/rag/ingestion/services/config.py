@@ -93,3 +93,5 @@ MINERU_GET_EXTRACTED_RESULT_URL_TIMEOUT_SECONDS = 30
 
 # MinerU 返回的图片文件中支持的文件格式
 MODEL_SUPPORTED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", "webp"}
+
+

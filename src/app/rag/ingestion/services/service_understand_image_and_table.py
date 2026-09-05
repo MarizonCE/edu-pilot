@@ -7,9 +7,11 @@ import re
 from mimetypes import guess_type
 from pathlib import Path
 
+import oss2
 from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 
+from app.infra.infra_config import infra_config
 from app.infra.vlm_gateway import vlm_gateway
 from app.rag.ingestion.services.config import MODEL_SUPPORTED_IMAGE_EXTENSIONS
 from app.rag.ingestion.state import IngestGraphState
@@ -136,6 +138,16 @@ async def _understand_image(near_image_context: list[tuple[str, str, tuple[str, 
     image_summaries: dict[str, str] = {result[0]: result[1] for result in results}
 
     return image_summaries
+
+
+def _upload_and_replace_image(file_title: str):
+    # 1. 基础配置
+    auth = oss2.Auth(infra_config.oss.access_key_id, infra_config.oss.access_key_secret)
+    bucket = oss2.Bucket(auth, infra_config.oss.endpoint, infra_config.oss.bucket_name)
+    prefix = f"upload-images/{file_title}"
+
+    # 2.
+
 
 
 def service_understand_image_and_table(state: IngestGraphState) -> IngestGraphState:

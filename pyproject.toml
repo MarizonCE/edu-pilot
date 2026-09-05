@@ -3,6 +3,7 @@ name = "edu-pilot"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "alibabacloud-oss-v2>=1.4.0",
     "dotenv>=0.9.9",
     "langchain-core>=1.6.1",
     "langchain-openai>=1.6.0",
